@@ -1,0 +1,174 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[1]:
+
+
+import os
+import numpy as np
+import pandas as pd
+
+
+# In[2]:
+
+
+titanic_data=pd.read_csv("train.csv")
+feature=titanic_data.drop("Survived",axis=1)
+output=titanic_data["Survived"]
+feature.describe()
+
+
+# In[ ]:
+
+
+
+
+
+# In[3]:
+
+
+feature.drop(["Name","Ticket","Cabin"],axis=1,inplace=True)
+
+
+# In[ ]:
+
+
+
+
+
+# In[4]:
+
+
+def conv(feature):
+ feature.describe(include=np.object)
+ feature2=feature.fillna(value={"Embarked":"S"}) ##Where() didnt worked here need to find out why
+ median=feature2["Age"].median()
+ feature2=feature2.fillna(value={"Age":median}) ##Where() didnt worked here need to find out why
+ feature2=feature2.fillna(value={"Fare":feature2["Fare"].median()})
+ return feature2
+
+
+# In[5]:
+
+
+
+feature2=conv(feature)
+num_attri=feature2.drop(["Sex","Embarked"],axis=1)
+cat_attri=feature2[["Sex","Embarked"]]
+feature2.describe()
+
+
+# In[ ]:
+
+
+
+
+
+# In[6]:
+
+
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+num_pipeline = Pipeline([
+('std_scaler', StandardScaler()),
+])
+feature3=num_pipeline.fit_transform(num_attri)
+
+
+# In[7]:
+
+
+list(cat_attri)
+
+
+# In[37]:
+
+
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+pop=OneHotEncoder()
+full_pipeline=ColumnTransformer([("num",num_pipeline,list(num_attri)),("cat",pop,list(cat_attri))])
+feature_prep=full_pipeline.fit_transform(feature2)
+kop=pop.fit_transform(feature2)
+
+
+# In[38]:
+
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score
+sgd_clf=LogisticRegression(solver="lbfgs")
+feature_prep=pd.DataFrame(feature_prep)
+cross_val_score(sgd_clf,feature_prep,output,cv=5,scoring="accuracy").mean()
+
+
+# In[39]:
+
+
+sgd_clf.fit(feature_prep,output)
+
+
+# In[40]:
+
+
+sgd_clf.coef_
+
+
+# In[41]:
+
+
+feature_test=pd.read_csv("test.csv")
+feature_test2=conv(feature_test)
+feature_test2.describe(include="all")
+
+
+# In[42]:
+
+
+feature_test2.drop(["Name","Ticket","Cabin"],axis=1,inplace=True)
+
+
+# In[43]:
+
+
+feature_test2.describe(include="all")
+
+
+# In[44]:
+
+
+feature_pred=full_pipeline.fit_transform(feature_test2)
+
+
+# In[45]:
+
+
+pred=sgd_clf.predict(feature_pred)
+pred=pd.DataFrame(pred)
+pred["PassengeId"]=feature_test2["PassengerId"]
+
+
+# In[46]:
+
+
+pred["Survived"]=pred[0]
+pred.drop([0],axis=1,inplace=True)
+
+
+# In[47]:
+
+
+pred.to_csv("test_pred.csv")
+
+
+# In[48]:
+
+
+feature
+
+
+# In[ ]:
+
+
+
+
